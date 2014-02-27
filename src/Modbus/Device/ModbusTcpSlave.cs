@@ -105,33 +105,37 @@ namespace Modbus.Device
 
 		internal void AcceptCompleted(IAsyncResult ar)
 		{
-			ModbusTcpSlave slave = (ModbusTcpSlave) ar.AsyncState;
+            try
+            {
+                ModbusTcpSlave slave = (ModbusTcpSlave)ar.AsyncState;
 
-			try
-			{
-				// use Socket async API for compact framework compat
-				Socket socket = null;
-				lock (_serverLock)
-					socket = Server.Server.EndAccept(ar);
+                // use Socket async API for compact framework compat
+                Socket socket = null;
+                lock (_serverLock)
+                    socket = Server.Server.EndAccept(ar);
 
-				TcpClient client = new TcpClient { Client = socket };
-				var masterConnection = new ModbusMasterTcpConnection(client, slave);
-				masterConnection.ModbusMasterTcpConnectionClosed += (sender, eventArgs) => RemoveMaster(eventArgs.EndPoint);
+                TcpClient client = new TcpClient { Client = socket };
+                var masterConnection = new ModbusMasterTcpConnection(client, slave);
+                masterConnection.ModbusMasterTcpConnectionClosed += (sender, eventArgs) => RemoveMaster(eventArgs.EndPoint);
 
-				lock (_mastersLock)
-					_masters.Add(client.Client.RemoteEndPoint.ToString(), masterConnection);
+                lock (_mastersLock)
+                    _masters.Add(client.Client.RemoteEndPoint.ToString(), masterConnection);
 
-				_logger.Debug("Accept completed.");
+                _logger.Debug("Accept completed.");
 
-				// Accept another client
-				// use Socket async API for compact framework compat
-				lock (_serverLock)
-					Server.Server.BeginAccept(AcceptCompleted, slave);
-			}
-			catch (ObjectDisposedException)
-			{
-				// this happens when the server stops
-			}
+                // Accept another client
+                // use Socket async API for compact framework compat
+                lock (_serverLock)
+                    Server.Server.BeginAccept(AcceptCompleted, slave);
+            }
+            catch (ObjectDisposedException)
+            {
+                // this happens when the server stops
+            }
+            catch (Exception ex)
+            {
+                _logger.Debug("Accept completed exception: " + ex.Message);
+            }
 		}
 
 		/// <summary>
